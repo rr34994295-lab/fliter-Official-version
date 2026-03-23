@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>影像濾波處理</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0a0e1a;
+            --panel-bg: rgba(22, 30, 50, 0.8);
+            --text-color: #e2e8f0;
+            --text-muted: #64748b;
+            --primary: #3b82f6;
+            --primary-hover: #60a5fa;
+            --border: rgba(255, 255, 255, 0.08);
+            --accent: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            background-image:
+                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.12) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.10) 0px, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        header {
+            text-align: center;
+            padding: 2rem;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            animation: slideDown 0.5s ease-out;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        h1 {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa, #f59e0b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            font-size: 0.95rem;
+        }
+
+        .controls label {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        select,
+        button {
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 0.95rem;
+            font-family: inherit;
+            background: rgba(10, 14, 26, 0.9);
+            color: white;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+        }
+
+        button {
+            background: var(--primary);
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        button:hover:not(:disabled) {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(59, 130, 246, 0.35);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @media (max-width: 768px) {
+            .workspace {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 1.4rem;
+            }
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            min-height: 400px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .panel-header {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.8rem;
+        }
+
+        .image-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            transition: all 0.3s;
+            background: rgba(0, 0, 0, 0.25);
+        }
+
+        .image-container.dragover {
+            border-color: var(--primary);
+            background: rgba(59, 130, 246, 0.08);
+        }
+
+        .image-container img {
+            max-width: 100%;
+            max-height: 500px;
+            object-fit: contain;
+            display: none;
+            border-radius: 4px;
+        }
+
+        .upload-placeholder {
+            text-align: center;
+            color: #475569;
+            pointer-events: none;
+        }
+
+        .upload-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.75rem;
+            display: block;
+            opacity: 0.6;
+        }
+
+        .upload-placeholder p {
+            font-size: 0.9rem;
+        }
+
+        input[type="file"] {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .loader {
+            display: none;
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-bottom-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            position: absolute;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-16px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(16px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .download-btn {
+            background: rgba(255, 255, 255, 0.06);
+            padding: 0.3rem 0.8rem;
+            font-size: 0.8rem;
+            border-radius: 6px;
+            text-decoration: none;
+            color: var(--text-muted);
+            display: none;
+            transition: 0.2s;
+            border: 1px solid var(--border);
+            font-family: 'Space Mono', monospace;
+        }
+
+        .download-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: white;
+        }
+
+        .status-bar {
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            padding: 0.5rem;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .status-bar .dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+
+        .dot.online {
+            background: #22c55e;
+        }
+
+        .dot.offline {
+            background: #ef4444;
+        }
+
+        .dot.checking {
+            background: #f59e0b;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>// IMAGE FILTER PROCESSOR</h1>
+            <div class="controls">
+                <label for="filter-type">濾波器：</label>
+                <select id="filter-type">
+                    <option value="sharpen">銳化 (Sharpen)</option>
+                    <option value="smooth">平滑化 (Smooth)</option>
+                </select>
+                <label for="matrix-size">矩陣：</label>
+                <select id="matrix-size">
+                    <option value="3">3×3</option>
+                    <option value="5">5×5</option>
+                    <option value="9">9×9</option>
+                </select>
+                <button id="process-btn">套用濾波器</button>
+            </div>
+        </header>
+
+        <div class="workspace">
+            <div class="panel">
+                <div class="panel-header">ORIGINAL</div>
+                <div class="image-container" id="drop-zone">
+                    <input type="file" id="file-input" accept="image/*">
+                    <div class="upload-placeholder" id="upload-placeholder">
+                        <span class="upload-icon">&#x1F4C2;</span>
+                        <p>點擊或拖曳圖片至此</p>
+                    </div>
+                    <img id="preview-img" alt="原圖預覽">
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    RESULT
+                    <a id="download-btn" class="download-btn" download="filtered_output.jpg">&#x2B73; Download</a>
+                </div>
+                <div class="image-container">
+                    <div class="loader" id="loader"></div>
+                    <img id="result-img" alt="處理結果">
+                </div>
+            </div>
+        </div>
+
+        <div class="status-bar">
+            <span class="dot checking" id="status-dot"></span>
+            <span id="status-text">檢查後端連線中...</span>
+        </div>
+    </div>
+
+    <script>
+        // =====================================================
+        //  請將下面的 URL 改成你在 Render 部署後取得的網址
+        //  例如: https://my-filter-app.onrender.com
+        // =====================================================
+        const API_BASE = "https://fliter-text.onrender.com";
+
+        const fileInput = document.getElementById('file-input');
+        const previewImg = document.getElementById('preview-img');
+        const uploadPlaceholder = document.getElementById('upload-placeholder');
+        const dropZone = document.getElementById('drop-zone');
+        const processBtn = document.getElementById('process-btn');
+        const resultImg = document.getElementById('result-img');
+        const loader = document.getElementById('loader');
+        const matrixSize = document.getElementById('matrix-size');
+        const downloadBtn = document.getElementById('download-btn');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+
+        let currentFile = null;
+
+        // 檢查後端是否在線
+        async function checkBackend() {
+            try {
+                const res = await fetch(API_BASE + "/", { method: "GET" });
+                if (res.ok) {
+                    statusDot.className = "dot online";
+                    statusText.textContent = "後端已連線 ✓";
+                } else {
+                    throw new Error();
+                }
+            } catch {
+                statusDot.className = "dot offline";
+                statusText.textContent = "後端離線 — 免費方案可能需要等待 ~30 秒啟動";
+                // Render 免費方案會休眠，首次請求會比較慢
+                setTimeout(checkBackend, 10000);
+            }
+        }
+        checkBackend();
+
+        // 處理圖片選擇
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) handleFile(e.target.files[0]);
+        });
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
+        });
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+        });
+        dropZone.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) handleFile(files[0]);
+        });
+
+        function handleFile(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('請上傳圖片檔 (JPG, PNG 等)');
+                return;
+            }
+            currentFile = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImg.src = e.target.result;
+                previewImg.style.display = 'block';
+                uploadPlaceholder.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+            resultImg.style.display = 'none';
+            downloadBtn.style.display = 'none';
+        }
+
+        // 送出處理請求到 Render 後端
+        processBtn.addEventListener('click', async () => {
+            if (!currentFile) {
+                alert('請先上傳圖片！');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', currentFile);
+            formData.append('size', matrixSize.value);
+            formData.append('filter_type', document.getElementById('filter-type').value);
+
+            resultImg.style.display = 'none';
+            downloadBtn.style.display = 'none';
+            loader.style.display = 'block';
+            processBtn.disabled = true;
+            processBtn.textContent = '處理中...';
+
+            try {
+                const response = await fetch(API_BASE + "/process", {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    resultImg.src = data.image;
+                    resultImg.style.display = 'block';
+                    downloadBtn.href = data.image;
+                    downloadBtn.style.display = 'inline-block';
+                } else {
+                    alert('處理失敗: ' + (data.error || '未知錯誤'));
+                }
+            } catch (err) {
+                alert('無法連線到後端伺服器，Render 免費方案首次啟動可能需要等待約 30 秒，請稍後再試。');
+            } finally {
+                loader.style.display = 'none';
+                processBtn.disabled = false;
+                processBtn.textContent = '套用濾波器';
+            }
+        });
+    </script>
+</body>
+
+</html>
